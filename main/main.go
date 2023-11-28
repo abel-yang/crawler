@@ -9,8 +9,12 @@ import (
 	"golang.org/x/text/transform"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"regexp"
 )
+
+// 正则匹配新闻中的图片
+// var headerRe = regexp.MustCompile(`<div class="news_li"[\s\S]*?<h2>[\s\S]*?<a.*?target="_blank">([\s\S]*?</a>)`)
+var headerRe = regexp.MustCompile(`<div class="ant-card-body"[\s\S]*?<h2>([\s\S]*?</h2>)`)
 
 func main() {
 	url := "https://www.thepaper.cn/"
@@ -21,12 +25,10 @@ func main() {
 		return
 	}
 
-	numLinks := strings.Count(string(body), "<a")
-	fmt.Printf("homepage has %d links\n", numLinks)
-
-	exists := strings.Contains(string(body), "战争")
-	fmt.Printf("是否存在战争：%v\n", exists)
-
+	matches := headerRe.FindAllSubmatch(body, -1)
+	for _, m := range matches {
+		fmt.Println("fetch card news: ", string(m[1]))
+	}
 }
 
 func fetch(url string) ([]byte, error) {
