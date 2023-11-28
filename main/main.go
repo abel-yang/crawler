@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 func main() {
@@ -29,5 +30,10 @@ func main() {
 		return
 	}
 
-	fmt.Println("body:", string(body))
+	numLinks := strings.Count(string(body), "<a")
+	fmt.Printf("homepage has %d links\n", numLinks)
+
+	exists := strings.Contains(string(body), "战争")
+	fmt.Printf("是否存在战争：%v\n", exists)
+
 }
