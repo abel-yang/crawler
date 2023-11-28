@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
 	unicode2 "golang.org/x/text/encoding/unicode"
@@ -25,9 +28,42 @@ func main() {
 		return
 	}
 
+	regMatch(body)
+	fmt.Println("--------------")
+	htmlHandle(body)
+	fmt.Println("css--------------")
+	css(body)
+}
+
+func css(b []byte) {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(b))
+	if err != nil {
+		fmt.Println("read content failed:%v", err)
+	}
+
+	doc.Find("div.small_toplink__GmZhY a[target=_blank]").Each(func(i int, s *goquery.Selection) {
+		//获取匹配标签中的文本
+		title := s.Text()
+		fmt.Printf("review %d: %s\n", i, title)
+	})
+}
+
+func regMatch(body []byte) {
 	matches := headerRe.FindAllSubmatch(body, -1)
 	for _, m := range matches {
 		fmt.Println("fetch card news: ", string(m[1]))
+	}
+}
+
+func htmlHandle(b []byte) {
+	doc, err := htmlquery.Parse(bytes.NewReader(b))
+	if err != nil {
+		fmt.Println("htmlquery.Parse failed:%v", err)
+	}
+	nodes := htmlquery.Find(doc, `//div[@class="small_toplink__GmZhY"]/a[@target="_blank"]/h2`)
+
+	for _, node := range nodes {
+		fmt.Println("fetch card ", node.FirstChild.Data)
 	}
 }
 
