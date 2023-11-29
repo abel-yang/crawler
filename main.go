@@ -7,6 +7,7 @@ import (
 	"github.com/abel-yang/crawler/collect"
 	"github.com/antchfx/htmlquery"
 	"regexp"
+	"time"
 )
 
 // 正则匹配新闻中的图片
@@ -15,13 +16,13 @@ var headerRe = regexp.MustCompile(`<div class="ant-card-body"[\s\S]*?<h2>([\s\S]
 
 func main() {
 	url := "https://book.douban.com/subject/1007305/"
-	var f collect.Fetcher = collect.BrowserFetch{}
+	var f collect.Fetcher = collect.BrowserFetch{
+		Timeout: 3000 * time.Millisecond,
+	}
 	body, err := f.Get(url)
 	if err != nil {
-		fmt.Printf("read content failed:%v\n", err)
-		return
+		fmt.Printf("read content error %v", err)
 	}
-
 	fmt.Println(string(body))
 }
 

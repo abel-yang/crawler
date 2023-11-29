@@ -2,13 +2,17 @@ package collect
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"github.com/chromedp/chromedp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
 	unicode2 "golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"time"
 )
 
 type Fetcher interface {
@@ -19,11 +23,14 @@ type BaseFetch struct {
 }
 
 type BrowserFetch struct {
+	Timeout time.Duration
 }
 
 // 模拟浏览器访问
-func (BrowserFetch) Get(url string) ([]byte, error) {
-	client := &http.Client{}
+func (b BrowserFetch) Get(url string) ([]byte, error) {
+	client := &http.Client{
+		Timeout: b.Timeout,
+	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -42,6 +49,40 @@ func (BrowserFetch) Get(url string) ([]byte, error) {
 	e := DetermineEncoding(bodyReader)
 	utf8Reader := transform.NewReader(bodyReader, e.NewDecoder())
 	return ioutil.ReadAll(utf8Reader)
+}
+
+/*
+*
+首先我们导入了 chromedp 库，并调用 chromedp.NewContext 为我们创建了一个浏览器的实例。
+它的实现原理非常简单，即查找当前系统指定路径下指定的谷歌应用程序，
+并默认用无头模式（Headless 模式）启动谷歌浏览器实例。
+通过无头模式，我们肉眼不会看到谷歌浏览器窗口的打开过程，但它确实已经在后台运行了。
+*/
+func chromeFetch() {
+	//1、创建谷歌浏览器实例
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
+
+	//2.设置context超时时间
+	ctx, cancel = context.WithTimeout(ctx, 15*time.Second)
+
+	defer cancel()
+
+	//3.爬取页面，等待某一个元素出现，接着模拟鼠标点击，最后获取数据
+	//chromedp.WaitVisible 指的是“等待当前标签可见”，其参数使用的是 CSS 选择器的形式。在这个例子中，body > footer 标签可见，代表正文已经加载完毕
+	//chromedp.Click 指的是“模拟对某一个标签的点击事件”。
+	//chromedp.Value 用于获取指定标签的数据。
+	var example string
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(`https://pkg.go.dev/time`),
+		chromedp.WaitVisible(`body > footer`),
+		chromedp.Click(`#example-After`, chromedp.NodeVisible),
+		chromedp.Value(`#example-After textarea`, &example),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Go's time.after example:\n%s", example)
 }
 
 func (BaseFetch) Get(url string) ([]byte, error) {
