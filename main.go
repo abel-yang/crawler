@@ -1,17 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/abel-yang/crawler/collect"
 	"github.com/antchfx/htmlquery"
-	"golang.org/x/net/html/charset"
-	"golang.org/x/text/encoding"
-	unicode2 "golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-	"io/ioutil"
-	"net/http"
 	"regexp"
 )
 
@@ -20,19 +14,15 @@ import (
 var headerRe = regexp.MustCompile(`<div class="ant-card-body"[\s\S]*?<h2>([\s\S]*?</h2>)`)
 
 func main() {
-	url := "https://www.thepaper.cn/"
-	body, err := fetch(url)
-
+	url := "https://book.douban.com/subject/1007305/"
+	var f collect.Fetcher = collect.BrowserFetch{}
+	body, err := f.Get(url)
 	if err != nil {
 		fmt.Printf("read content failed:%v\n", err)
 		return
 	}
 
-	regMatch(body)
-	fmt.Println("--------------")
-	htmlHandle(body)
-	fmt.Println("css--------------")
-	css(body)
+	fmt.Println(string(body))
 }
 
 func css(b []byte) {
@@ -65,34 +55,4 @@ func htmlHandle(b []byte) {
 	for _, node := range nodes {
 		fmt.Println("fetch card ", node.FirstChild.Data)
 	}
-}
-
-func fetch(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Error status code:%v", resp.StatusCode)
-	}
-	bodyReader := bufio.NewReader(resp.Body)
-	e := DetermineEncoding(bodyReader)
-	utf8Reader := transform.NewReader(bodyReader, e.NewDecoder())
-	return ioutil.ReadAll(utf8Reader)
-}
-
-func DetermineEncoding(r *bufio.Reader) encoding.Encoding {
-	bytes, err := r.Peek(1024)
-
-	if err != nil {
-		fmt.Printf("fetch error:%v", err)
-		return unicode2.UTF8
-	}
-
-	e, _, _ := charset.DetermineEncoding(bytes, "")
-	return e
 }
