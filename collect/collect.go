@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/abel-yang/crawler/proxy"
 	"github.com/chromedp/chromedp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
@@ -24,6 +25,7 @@ type BaseFetch struct {
 
 type BrowserFetch struct {
 	Timeout time.Duration
+	Proxy   proxy.ProxyFunc
 }
 
 // 模拟浏览器访问
@@ -32,6 +34,11 @@ func (b BrowserFetch) Get(url string) ([]byte, error) {
 		Timeout: b.Timeout,
 	}
 
+	if b.Proxy != nil {
+		transport := http.DefaultTransport.(*http.Transport)
+		transport.Proxy = b.Proxy
+		client.Transport = transport
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get url failed:%v", err)
