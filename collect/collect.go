@@ -28,7 +28,7 @@ type BrowserFetch struct {
 	Proxy   proxy.ProxyFunc
 }
 
-// 模拟浏览器访问
+// Get 模拟浏览器访问
 func (b BrowserFetch) Get(url string) ([]byte, error) {
 	client := &http.Client{
 		Timeout: b.Timeout,
