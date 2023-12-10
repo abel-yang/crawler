@@ -2,207 +2,57 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/log"
+	"github.com/abel-yang/crawler/parse/doubanggroup"
+	"github.com/abel-yang/crawler/proxy"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"time"
 )
 
 func main() {
-	prime()
-}
+	plugin := log.NewStdoutPlugin(zapcore.InfoLevel)
+	logger := log.NewLogger(plugin)
+	logger.Info("log init end")
 
-func pingPong() {
-	var Ball int
-	table := make(chan int)
-
-	for i := 0; i < 5; i++ {
-		go player(i, table)
-	}
-
-	table <- Ball
-
-	time.Sleep(1 * time.Second)
-	<-table
-}
-
-func player(id int, table chan int) {
-	for {
-		ball := <-table
-		fmt.Printf("当前table:%d, 接收值:%d\n", id, ball)
-		ball++
-		time.Sleep(100 * time.Millisecond)
-		table <- ball
-	}
-}
-
-func search(msg string) chan string {
-	ch := make(chan string)
-	go func() {
-		var i int
-		for {
-			//模拟找到关键字
-			ch <- fmt.Sprintf("get %s %d", msg, i)
-			i++
-			time.Sleep(1 * time.Second)
-		}
-	}()
-	return ch
-}
-
-func fanIn() {
-	ch1 := search("abel")
-	ch2 := search("jiangshan")
-
-	for {
-		select {
-		case msg := <-ch1:
-			fmt.Println(msg)
-		case msg := <-ch2:
-			fmt.Println(msg)
-		}
-	}
-}
-
-const (
-	WORKERS    = 5
-	SUBWORKERS = 3
-	TASKS      = 20
-	SUBTASKS   = 10
-)
-
-func startWorks() {
-	var wg sync.WaitGroup
-	wg.Add(WORKERS)
-
-	taskCh := make(chan int)
-
-	for i := 0; i < WORKERS; i++ {
-		go work(taskCh, &wg)
-	}
-
-	for i := 0; i < TASKS; i++ {
-		taskCh <- i
-	}
-
-	close(taskCh)
-
-	wg.Wait()
-}
-
-func work(taskCh chan int, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for {
-		task, ok := <-taskCh
-		if !ok {
-			return
-		}
-
-		subtasks := make(chan int)
-		for i := 0; i < SUBWORKERS; i++ {
-			go subWork(subtasks)
-		}
-
-		for i := 0; i < SUBTASKS; i++ {
-			task1 := task * i
-			subtasks <- task1
-		}
-	}
-}
-
-func subWork(subtasks chan int) {
-	task, ok := <-subtasks
-	if !ok {
+	proxyUrl := []string{"http://127.0.0.1:9981", "http://127.0.0.1:9981"}
+	p, err := proxy.RoundRobinProxySwitcher(proxyUrl)
+	if err != nil {
+		logger.Error("RoundRobinProxySwitcher failed")
 		return
 	}
-	d := time.Duration(task) * time.Millisecond
-	time.Sleep(d)
-	fmt.Println("processing task", task)
-}
+	var f collect.Fetcher = collect.BrowserFetch{
+		Timeout: 3000 * time.Millisecond,
+		Proxy:   p,
+	}
+	cookie := "bid=-UXUw--yL5g; dbcl2=\"214281202:q0BBm9YC2Yg\"; __yadk_uid=jigAbrEOKiwgbAaLUt0G3yPsvehXcvrs; push_noty_num=0; push_doumail_num=0; __utmz=30149280.1665849857.1.1.utmcsr=accounts.douban.com|utmccn=(referral)|utmcmd=referral|utmcct=/; __utmv=30149280.21428; ck=SAvm; _pk_ref.100001.8cb4=%5B%22%22%2C%22%22%2C1665925405%2C%22https%3A%2F%2Faccounts.douban.com%2F%22%5D; _pk_ses.100001.8cb4=*; __utma=30149280.2072705865.1665849857.1665849857.1665925407.2; __utmc=30149280; __utmt=1; __utmb=30149280.23.5.1665925419338; _pk_id.100001.8cb4=fc1581490bf2b70c.1665849856.2.1665925421.1665849856."
 
-func piped() {
-	generator := func(done chan interface{}, integers ...int) chan int {
-		intStream := make(chan int)
-		go func() {
-			defer close(intStream)
-			for _, i := range integers {
-				select {
-				case <-done:
-					return
-				case intStream <- i:
-				}
+	var workList []*collect.Request
+	for i := 0; i <= 100; i += 25 {
+		str := fmt.Sprintf("https://www.douban.com/group/szsh/discussion?start=%d", i)
+		workList = append(workList, &collect.Request{
+			Url:       str,
+			Cookie:    cookie,
+			ParseFunc: doubanggroup.ParseUrl,
+		})
+	}
+
+	for len(workList) > 0 {
+		items := workList
+		workList = nil
+		for _, item := range items {
+			body, err := f.Get(item)
+			time.Sleep(1 * time.Second)
+			if err != nil {
+				logger.Error("read content failed", zap.Error(err))
+				continue
 			}
-		}()
-		return intStream
-	}
-
-	multiply := func(done chan interface{}, intStream chan int, multiplier int) chan int {
-		multiplierStream := make(chan int)
-		go func() {
-			defer close(multiplierStream)
-			for i := range intStream {
-				select {
-				case <-done:
-					return
-				case multiplierStream <- i * multiplier:
-				}
+			res := item.ParseFunc(body)
+			for _, item := range res.Items {
+				logger.Info("result", zap.String("get url:", item.(string)))
 			}
-		}()
-		return multiplierStream
-	}
-
-	add := func(done chan interface{}, intStream chan int, additive int) chan int {
-		addStream := make(chan int)
-		go func() {
-			defer close(addStream)
-			for i := range intStream {
-				select {
-				case <-done:
-					return
-				case addStream <- i + additive:
-				}
-			}
-		}()
-		return addStream
-	}
-
-	done := make(chan interface{})
-	defer close(done)
-
-	intStream := generator(done, 1, 2, 3, 4)
-	multipliedStream := multiply(done, intStream, 2)
-	addedStream := add(done, multipliedStream, 1)
-	pipeline := multiply(done, addedStream, 2)
-
-	for v := range pipeline {
-		fmt.Println(v)
-	}
-
-}
-
-// 第一个阶段，数字的生成器
-func generator(ch chan int) {
-	for i := 2; ; i++ {
-		ch <- i
-	}
-}
-
-// 筛选，排除不能够被prime整除的数
-func filter(in chan int, out chan int, prime int) {
-	for {
-		i := <-in
-		if i%prime != 0 {
-			out <- i
+			workList = append(workList, res.Requests...)
 		}
-	}
-}
-
-func prime() {
-	ch := make(chan int)
-	go generator(ch)
-	for i := 0; i < 100000; i++ {
-		prime := <-ch //获取上一个阶段输出的第一个数，其必然为素数
-		fmt.Println(prime)
-		ch1 := make(chan int)
-		go filter(ch, ch1, prime)
-		ch = ch1 // 前一个阶段的输出作为后一个阶段的输入。
 	}
 }
