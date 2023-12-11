@@ -7,7 +7,7 @@ import (
 
 const cityListRe = `(https://www.douban.com/group/topic/[0-9a-z]+/)"[^>]*>([^<]+)</a>`
 
-func ParseUrl(contents []byte) collect.ParseResult {
+func ParseUrl(contents []byte, req *collect.Request) collect.ParseResult {
 	re := regexp.MustCompile(cityListRe)
 
 	matches := re.FindAllSubmatch(contents, -1)
@@ -17,8 +17,12 @@ func ParseUrl(contents []byte) collect.ParseResult {
 		u := string(m[1])
 		result.Requests = append(
 			result.Requests, &collect.Request{
-				Url: u,
-				ParseFunc: func(c []byte) collect.ParseResult {
+				Url:      u,
+				WaitTime: req.WaitTime,
+				Cookie:   req.Cookie,
+				Depth:    req.Depth + 1,
+				MaxDepth: req.MaxDepth,
+				ParseFunc: func(c []byte, req *collect.Request) collect.ParseResult {
 					return GetContent(c, u)
 				},
 			},

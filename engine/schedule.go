@@ -61,12 +61,16 @@ func (s *Schedule) Schedule() {
 func (s *Schedule) CreateWork() {
 	for {
 		r := <-s.workerCh
+		if err := r.Check(); err != nil {
+			s.Logger.Error("check failed", zap.Error(err))
+			continue
+		}
 		body, err := s.Fetcher.Get(r)
 		if err != nil {
 			s.Logger.Error("can't fetch", zap.Error(err))
 			continue
 		}
-		result := r.ParseFunc(body)
+		result := r.ParseFunc(body, r)
 		s.out <- result
 		time.Sleep(r.WaitTime)
 	}
