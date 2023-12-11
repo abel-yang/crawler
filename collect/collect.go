@@ -47,8 +47,8 @@ func (b BrowserFetch) Get(request *Request) ([]byte, error) {
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
-	if len(request.Cookie) > 0 {
-		req.Header.Set("Cookie", request.Cookie)
+	if len(request.Task.Cookie) > 0 {
+		req.Header.Set("Cookie", request.Task.Cookie)
 	}
 	resp, err := client.Do(req)
 

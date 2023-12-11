@@ -10,17 +10,25 @@ type ParseResult struct {
 	Items    []interface{} //网站获取到的数据
 }
 
+type Task struct {
+	Url      string
+	WaitTime time.Duration
+	MaxDepth int
+	Cookie   string
+	RootReq  *Request
+	Fetcher  Fetcher
+}
+
+// 单个请求
 type Request struct {
+	Task      *Task
 	Url       string
-	WaitTime  time.Duration
 	Depth     int
-	MaxDepth  int
-	Cookie    string
 	ParseFunc func([]byte, *Request) ParseResult
 }
 
 func (r *Request) Check() error {
-	if r.Depth > r.MaxDepth {
+	if r.Depth > r.Task.MaxDepth {
 		return errors.New("max depth limit reached")
 	}
 	return nil
