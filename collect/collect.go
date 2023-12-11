@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/abel-yang/crawler/proxy"
 	"github.com/chromedp/chromedp"
+	"go.uber.org/zap"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
 	unicode2 "golang.org/x/text/encoding/unicode"
@@ -26,6 +27,7 @@ type BaseFetch struct {
 type BrowserFetch struct {
 	Timeout time.Duration
 	Proxy   proxy.ProxyFunc
+	Logger  *zap.Logger
 }
 
 // Get 模拟浏览器访问
