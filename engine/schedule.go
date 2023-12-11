@@ -9,11 +9,18 @@ import (
 type Schedule struct {
 	requestCh chan *collect.Request
 	workerCh  chan *collect.Request
-	WorkCount int
-	Fetcher   collect.Fetcher
-	Logger    *zap.Logger
 	out       chan collect.ParseResult
-	Seeds     []*collect.Request
+	options
+}
+
+func NewSchedule(opts ...Option) *Schedule {
+	options := defaultOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+	s := &Schedule{}
+	s.options = options
+	return s
 }
 
 func (s *Schedule) Run() {
