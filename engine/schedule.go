@@ -3,10 +3,31 @@ package engine
 import (
 	"fmt"
 	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/parse/doubanggroup"
 	"go.uber.org/zap"
 	"sync"
 	"time"
 )
+
+func init() {
+	Store.Add(doubanggroup.DoubangroupTask)
+}
+
+// 全局爬虫任务实例
+var Store = &CrawlerStore{
+	list: []*collect.Task{},
+	hash: map[string]*collect.Task{},
+}
+
+type CrawlerStore struct {
+	list []*collect.Task
+	hash map[string]*collect.Task
+}
+
+func (c *CrawlerStore) Add(task *collect.Task) {
+	c.hash[task.Name] = task
+	c.list = append(c.list, task)
+}
 
 type Crawler struct {
 	out         chan collect.ParseResult
@@ -107,9 +128,14 @@ func (e *Crawler) Run() {
 func (e *Crawler) Schedule() {
 	var reqs []*collect.Request
 	for _, seed := range e.Seeds {
-		seed.RootReq.Url = seed.Url
-		seed.RootReq.Task = seed
-		reqs = append(reqs, seed.RootReq)
+		task := Store.hash[seed.Name]
+		task.Fetcher = seed.Fetcher
+		//获取初始任务
+		rootReqs := task.Rule.Root()
+		for _, req := range rootReqs {
+			req.Task = task
+		}
+		reqs = append(reqs, rootReqs...)
 	}
 	go e.scheduler.Schedule()
 	go e.scheduler.Push(reqs...)
@@ -141,7 +167,13 @@ func (e *Crawler) CreateWork() {
 			e.SetFailure(r)
 			continue
 		}
-		result := r.ParseFunc(body, r)
+		//获取当前任务对应的规则
+		rule := r.Task.Rule.Trunk[r.RuleName]
+		//从规则中获取解析函数解析
+		result := rule.ParseFunc(&collect.Context{
+			Body: body,
+			Req:  r,
+		})
 		if len(result.Requests) > 0 {
 			e.scheduler.Push(result.Requests...)
 		}

@@ -13,22 +13,25 @@ type ParseResult struct {
 }
 
 type Task struct {
+	Name     string
 	Url      string
 	WaitTime time.Duration
 	MaxDepth int
 	Cookie   string
-	RootReq  *Request
 	Fetcher  Fetcher
 	Reload   bool //网页是否可以重复爬取
+	Rule     RuleTree
 }
 
 // 单个请求
 type Request struct {
+	unique    string
 	Task      *Task
 	Priority  int
 	Url       string
 	Depth     int
 	Method    string
+	RuleName  string
 	ParseFunc func([]byte, *Request) ParseResult
 }
 
