@@ -1,6 +1,8 @@
 package collect
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"time"
 )
@@ -24,6 +26,7 @@ type Request struct {
 	Task      *Task
 	Url       string
 	Depth     int
+	Method    string
 	ParseFunc func([]byte, *Request) ParseResult
 }
 
@@ -32,4 +35,10 @@ func (r *Request) Check() error {
 		return errors.New("max depth limit reached")
 	}
 	return nil
+}
+
+// Unique 请求唯一标识
+func (r *Request) Unique() string {
+	identify := md5.Sum([]byte(r.Url + r.Method))
+	return hex.EncodeToString(identify[:])
 }
