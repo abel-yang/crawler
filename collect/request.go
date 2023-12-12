@@ -19,6 +19,7 @@ type Task struct {
 	Cookie   string
 	RootReq  *Request
 	Fetcher  Fetcher
+	Reload   bool //网页是否可以重复爬取
 }
 
 // 单个请求
