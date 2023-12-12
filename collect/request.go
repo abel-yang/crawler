@@ -24,6 +24,7 @@ type Task struct {
 // 单个请求
 type Request struct {
 	Task      *Task
+	Priority  int
 	Url       string
 	Depth     int
 	Method    string
