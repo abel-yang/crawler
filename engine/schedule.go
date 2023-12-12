@@ -1,96 +1,129 @@
 package engine
 
 import (
+	"fmt"
 	"github.com/abel-yang/crawler/collect"
 	"go.uber.org/zap"
-	"time"
 )
 
-type Schedule struct {
-	requestCh chan *collect.Request
-	workerCh  chan *collect.Request
-	out       chan collect.ParseResult
+type Crawler struct {
+	out chan collect.ParseResult
 	options
 }
 
-func NewSchedule(opts ...Option) *Schedule {
+type Scheduler interface {
+	Schedule()
+	Push(...*collect.Request)
+	Pull() *collect.Request
+}
+
+type Schedule struct {
+	reqQueue  []*collect.Request
+	requestCh chan *collect.Request
+	workerCh  chan *collect.Request
+	Logger    *zap.Logger
+}
+
+func NewSchedule() *Schedule {
+	s := &Schedule{}
+	requestCh := make(chan *collect.Request)
+	workerCh := make(chan *collect.Request)
+	s.requestCh = requestCh
+	s.workerCh = workerCh
+	return s
+}
+
+func (s *Schedule) Schedule() {
+	for {
+		var req *collect.Request
+		var ch chan *collect.Request
+		if len(s.reqQueue) > 0 {
+			req = s.reqQueue[0]
+			s.reqQueue = s.reqQueue[1:]
+			ch = s.workerCh
+		}
+		select {
+		case r := <-s.requestCh:
+			s.reqQueue = append(s.reqQueue, r)
+		case ch <- req:
+			fmt.Println("dispatch request...")
+		}
+	}
+}
+
+func (s *Schedule) Push(reqs ...*collect.Request) {
+	for _, req := range reqs {
+		s.requestCh <- req
+	}
+}
+
+func (s *Schedule) Pull() *collect.Request {
+	r := <-s.workerCh
+	return r
+}
+
+func NewEngine(opts ...Option) *Crawler {
 	options := defaultOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
-	s := &Schedule{}
-	s.options = options
-	return s
-}
-
-func (s *Schedule) Run() {
-	requestCh := make(chan *collect.Request)
-	workerCh := make(chan *collect.Request)
 	out := make(chan collect.ParseResult)
-	s.requestCh = requestCh
-	s.workerCh = workerCh
-	s.out = out
-	go s.Schedule()
-	for i := 0; i < s.WorkCount; i++ {
-		go s.CreateWork()
-	}
-	s.HandleResult()
+	e := &Crawler{}
+	e.out = out
+	e.options = options
+	return e
 }
 
-func (s *Schedule) Schedule() {
-	var reqQueue []*collect.Request
-	for _, seed := range s.Seeds {
-		seed.RootReq.Task = seed
+func (e *Crawler) Run() {
+	go e.Schedule()
+	for i := 0; i < e.WorkCount; i++ {
+		go e.CreateWork()
+	}
+	e.HandleResult()
+}
+
+func (e *Crawler) Schedule() {
+	var reqs []*collect.Request
+	for _, seed := range e.Seeds {
 		seed.RootReq.Url = seed.Url
-		reqQueue = append(reqQueue, seed.RootReq)
+		seed.RootReq.Task = seed
+		reqs = append(reqs, seed.RootReq)
 	}
-	go func() {
-		for {
-			var req *collect.Request
-			var ch chan *collect.Request
-			if len(reqQueue) > 0 {
-				req = reqQueue[0]
-				reqQueue = reqQueue[1:]
-				ch = s.workerCh
-			}
-			select {
-			case r := <-s.requestCh:
-				reqQueue = append(reqQueue, r)
-			case ch <- req:
-
-			}
-		}
-	}()
+	go e.scheduler.Schedule()
+	go e.scheduler.Push(reqs...)
 }
 
-func (s *Schedule) CreateWork() {
+func (e *Crawler) CreateWork() {
 	for {
-		r := <-s.workerCh
+		r := e.scheduler.Pull()
 		if err := r.Check(); err != nil {
-			s.Logger.Error("check failed", zap.Error(err))
+			e.Logger.Error("can't fetch", zap.Error(err))
 			continue
 		}
-		body, err := s.Fetcher.Get(r)
+		body, err := r.Task.Fetcher.Get(r)
+		if len(body) < 6000 {
+			e.Logger.Error("can't fetch ", zap.Int("length", len(body)), zap.String("url", r.Url))
+			continue
+		}
 		if err != nil {
-			s.Logger.Error("can't fetch", zap.Error(err))
+			e.Logger.Error("can't fetch", zap.Error(err), zap.String("url", r.Url))
 			continue
 		}
 		result := r.ParseFunc(body, r)
-		s.out <- result
-		time.Sleep(r.Task.WaitTime)
+		if len(result.Requests) > 0 {
+			e.scheduler.Push(result.Requests...)
+		}
+		e.out <- result
 	}
 }
 
-func (s *Schedule) HandleResult() {
+func (e *Crawler) HandleResult() {
 	for {
 		select {
-		case r := <-s.out:
-			for _, req := range r.Requests {
-				s.requestCh <- req
-			}
-			for _, item := range r.Items {
+		case result := <-e.out:
+			for _, item := range result.Items {
 				//todo: store
-				s.Logger.Sugar().Info("get result", item)
+				e.Logger.Sugar().Info("get result: ", item)
 			}
 		}
 	}
