@@ -4,8 +4,18 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"regexp"
 	"time"
 )
+
+type Property struct {
+	Name     string        `json:"name"`
+	Url      string        `json:"url"`
+	Cookie   string        `json:"cookie"`
+	WaitTime time.Duration `json:"waitTime"`
+	Reload   bool          `json:"reload"` //网页是否可以重复爬取
+	MaxDepth int           `json:"max_depth"`
+}
 
 type ParseResult struct {
 	Requests []*Request    // 网站获取到的资源链接
@@ -13,26 +23,25 @@ type ParseResult struct {
 }
 
 type Task struct {
-	Name     string
-	Url      string
-	WaitTime time.Duration
-	MaxDepth int
-	Cookie   string
-	Fetcher  Fetcher
-	Reload   bool //网页是否可以重复爬取
-	Rule     RuleTree
+	Property
+	Fetcher Fetcher
+	Rule    RuleTree
+}
+
+type Context struct {
+	Body []byte
+	Req  *Request
 }
 
 // 单个请求
 type Request struct {
-	unique    string
-	Task      *Task
-	Priority  int
-	Url       string
-	Depth     int
-	Method    string
-	RuleName  string
-	ParseFunc func([]byte, *Request) ParseResult
+	unique   string
+	Task     *Task
+	Priority int
+	Url      string
+	Depth    int
+	Method   string
+	RuleName string
 }
 
 func (r *Request) Check() error {
@@ -46,4 +55,34 @@ func (r *Request) Check() error {
 func (r *Request) Unique() string {
 	identify := md5.Sum([]byte(r.Url + r.Method))
 	return hex.EncodeToString(identify[:])
+}
+
+func (ctx *Context) ParseJSReg(name string, reg string) ParseResult {
+	re := regexp.MustCompile(reg)
+	matches := re.FindAllSubmatch(ctx.Body, -1)
+	result := ParseResult{}
+	for _, m := range matches {
+		u := string(m[1])
+		result.Requests = append(result.Requests, &Request{
+			Method:   "Get",
+			Task:     ctx.Req.Task,
+			Url:      u,
+			Depth:    ctx.Req.Depth + 1,
+			RuleName: name,
+		})
+	}
+	return result
+}
+
+func (ctx *Context) OutputJS(reg string) ParseResult {
+	re := regexp.MustCompile(reg)
+	ok := re.Match(ctx.Body)
+	if !ok {
+		return ParseResult{
+			Items: []interface{}{},
+		}
+	}
+	return ParseResult{
+		Items: []interface{}{ctx.Req.Url},
+	}
 }

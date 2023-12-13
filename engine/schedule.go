@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/abel-yang/crawler/collect"
 	"github.com/abel-yang/crawler/parse/doubanggroup"
+	"github.com/robertkrimen/otto"
 	"go.uber.org/zap"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 func init() {
 	Store.Add(doubanggroup.DoubangroupTask)
+	Store.AddJSTask(doubanggroup.DoubangroupjsTask)
 }
 
 // 全局爬虫任务实例
@@ -27,6 +29,72 @@ type CrawlerStore struct {
 func (c *CrawlerStore) Add(task *collect.Task) {
 	c.hash[task.Name] = task
 	c.list = append(c.list, task)
+}
+
+func (c *CrawlerStore) AddJSTask(m *collect.TaskModel) {
+	task := &collect.Task{
+		Property: m.Property,
+	}
+
+	task.Rule.Root = func() ([]*collect.Request, error) {
+		vm := otto.New()
+		vm.Set("AddJsReq", AddJsReq)
+		v, err := vm.Eval(m.Root)
+		if err != nil {
+			return nil, err
+		}
+		e, err := v.Export()
+		if err != nil {
+			return nil, err
+		}
+		return e.([]*collect.Request), nil
+	}
+
+	for _, r := range m.Rules {
+		parseFunc := func(parse string) func(ctx *collect.Context) (collect.ParseResult, error) {
+			return func(ctx *collect.Context) (collect.ParseResult, error) {
+				vm := otto.New()
+				vm.Set("ctx", ctx)
+				v, err := vm.Eval(parse)
+				if err != nil {
+					return collect.ParseResult{}, err
+				}
+				e, err := v.Export()
+				if err != nil {
+					return collect.ParseResult{}, err
+				}
+				return e.(collect.ParseResult), nil
+			}
+		}(r.ParseFunc)
+		if task.Rule.Trunk == nil {
+			task.Rule.Trunk = make(map[string]*collect.Rule, 0)
+		}
+		task.Rule.Trunk[r.Name] = &collect.Rule{
+			ParseFunc: parseFunc,
+		}
+	}
+
+	c.list = append(Store.list, task)
+	c.hash[task.Name] = task
+}
+
+// AddJsReq 用于动态规则添加请求
+func AddJsReq(jreqs []map[string]interface{}) []*collect.Request {
+	reqs := make([]*collect.Request, 0)
+
+	for _, jreq := range jreqs {
+		req := &collect.Request{}
+		u, ok := jreq["Url"].(string)
+		if !ok {
+			return nil
+		}
+		req.Url = u
+		req.RuleName, _ = jreq["RuleName"].(string)
+		req.Priority, _ = jreq["Priority"].(int)
+		req.Method, _ = jreq["Method"].(string)
+		reqs = append(reqs, req)
+	}
+	return reqs
 }
 
 type Crawler struct {
@@ -131,7 +199,7 @@ func (e *Crawler) Schedule() {
 		task := Store.hash[seed.Name]
 		task.Fetcher = seed.Fetcher
 		//获取初始任务
-		rootReqs := task.Rule.Root()
+		rootReqs, _ := task.Rule.Root()
 		for _, req := range rootReqs {
 			req.Task = task
 		}
@@ -170,10 +238,15 @@ func (e *Crawler) CreateWork() {
 		//获取当前任务对应的规则
 		rule := r.Task.Rule.Trunk[r.RuleName]
 		//从规则中获取解析函数解析
-		result := rule.ParseFunc(&collect.Context{
+		result, err := rule.ParseFunc(&collect.Context{
 			Body: body,
 			Req:  r,
 		})
+		if err != nil {
+			e.Logger.Error("ParseFunc failed", zap.Error(err), zap.String("url", r.Url))
+			e.SetFailure(r)
+			continue
+		}
 		if len(result.Requests) > 0 {
 			e.scheduler.Push(result.Requests...)
 		}
