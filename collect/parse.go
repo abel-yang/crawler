@@ -1,7 +1,8 @@
 package collect
 
 type Rule struct {
-	ParseFunc func(*Context) (ParseResult, error) // 内容解析函数
+	ItemFields []string
+	ParseFunc  func(*Context) (ParseResult, error) // 内容解析函数
 }
 
 type RuleTree struct {

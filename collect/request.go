@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"github.com/abel-yang/crawler/collector"
 	"regexp"
 	"time"
 )
@@ -42,6 +43,7 @@ type Request struct {
 	Depth    int
 	Method   string
 	RuleName string
+	TmpData  *Temp
 }
 
 func (r *Request) Check() error {
@@ -85,4 +87,14 @@ func (ctx *Context) OutputJS(reg string) ParseResult {
 	return ParseResult{
 		Items: []interface{}{ctx.Req.Url},
 	}
+}
+
+func (ctx *Context) Output(data interface{}) *collector.OutputData {
+	res := &collector.OutputData{}
+	res.Data = make(map[string]interface{})
+	res.Data["Rule"] = ctx.Req.RuleName
+	res.Data["Data"] = data
+	res.Data["Url"] = ctx.Req.Url
+	res.Data["Time"] = time.Now().Format("2000-01-01 00:00:00")
+	return res
 }

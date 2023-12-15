@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/parse/doubanbook"
 	"github.com/abel-yang/crawler/parse/doubanggroup"
 	"github.com/robertkrimen/otto"
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ import (
 func init() {
 	Store.Add(doubanggroup.DoubangroupTask)
 	Store.AddJSTask(doubanggroup.DoubangroupjsTask)
+	Store.AddBookTask(doubanbook.DoubanbookTask)
 }
 
 // 全局爬虫任务实例
@@ -74,7 +76,12 @@ func (c *CrawlerStore) AddJSTask(m *collect.TaskModel) {
 		}
 	}
 
-	c.list = append(Store.list, task)
+	c.list = append(c.list, task)
+	c.hash[task.Name] = task
+}
+
+func (c *CrawlerStore) AddBookTask(task *collect.Task) {
+	c.list = append(c.list, task)
 	c.hash[task.Name] = task
 }
 
