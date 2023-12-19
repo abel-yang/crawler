@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/collector"
 	"github.com/abel-yang/crawler/parse/doubanbook"
 	"github.com/abel-yang/crawler/parse/doubanggroup"
 	"github.com/robertkrimen/otto"
@@ -20,16 +21,20 @@ func init() {
 // 全局爬虫任务实例
 var Store = &CrawlerStore{
 	list: []*collect.Task{},
-	hash: map[string]*collect.Task{},
+	Hash: map[string]*collect.Task{},
+}
+
+func GetFields(taskName string, ruleName string) []string {
+	return Store.Hash[taskName].Rule.Trunk[ruleName].ItemFields
 }
 
 type CrawlerStore struct {
 	list []*collect.Task
-	hash map[string]*collect.Task
+	Hash map[string]*collect.Task
 }
 
 func (c *CrawlerStore) Add(task *collect.Task) {
-	c.hash[task.Name] = task
+	c.Hash[task.Name] = task
 	c.list = append(c.list, task)
 }
 
@@ -77,12 +82,12 @@ func (c *CrawlerStore) AddJSTask(m *collect.TaskModel) {
 	}
 
 	c.list = append(c.list, task)
-	c.hash[task.Name] = task
+	c.Hash[task.Name] = task
 }
 
 func (c *CrawlerStore) AddBookTask(task *collect.Task) {
 	c.list = append(c.list, task)
-	c.hash[task.Name] = task
+	c.Hash[task.Name] = task
 }
 
 // AddJsReq 用于动态规则添加请求
@@ -203,8 +208,9 @@ func (e *Crawler) Run() {
 func (e *Crawler) Schedule() {
 	var reqs []*collect.Request
 	for _, seed := range e.Seeds {
-		task := Store.hash[seed.Name]
+		task := Store.Hash[seed.Name]
 		task.Fetcher = seed.Fetcher
+		task.Storage = seed.Storage
 		//获取初始任务
 		rootReqs, _ := task.Rule.Root()
 		for _, req := range rootReqs {
@@ -266,7 +272,12 @@ func (e *Crawler) HandleResult() {
 		select {
 		case result := <-e.out:
 			for _, item := range result.Items {
-				//todo: store
+				switch d := item.(type) {
+				case *collector.DataCell:
+					name := d.GetTaskName()
+					task := Store.Hash[name]
+					task.Storage.Save(d)
+				}
 				e.Logger.Sugar().Info("get result: ", item)
 			}
 		}

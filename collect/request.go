@@ -27,6 +27,7 @@ type Task struct {
 	Property
 	Fetcher Fetcher
 	Rule    RuleTree
+	Storage collector.Storage
 }
 
 type Context struct {
@@ -89,9 +90,11 @@ func (ctx *Context) OutputJS(reg string) ParseResult {
 	}
 }
 
-func (ctx *Context) Output(data interface{}) *collector.OutputData {
-	res := &collector.OutputData{}
+func (ctx *Context) Output(data interface{}) *collector.DataCell {
+	res := &collector.DataCell{}
 	res.Data = make(map[string]interface{})
+	res.Data["Task"] = ctx.Req.Task.Name
+	res.Data["table"] = ctx.Req.Task.Name
 	res.Data["Rule"] = ctx.Req.RuleName
 	res.Data["Data"] = data
 	res.Data["Url"] = ctx.Req.Url

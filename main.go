@@ -2,9 +2,12 @@ package main
 
 import (
 	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/collector"
+	"github.com/abel-yang/crawler/collector/sqlstorage"
 	"github.com/abel-yang/crawler/engine"
 	"github.com/abel-yang/crawler/log"
 	"github.com/abel-yang/crawler/proxy"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"time"
 )
@@ -26,12 +29,24 @@ func main() {
 		Proxy:   p,
 	}
 
+	var storage collector.Storage
+	storage, err = sqlstorage.New(
+		sqlstorage.WithSqlUrl("root:123456@tcp(127.0.0.1:3326)/crawler?charset=utf8"),
+		sqlstorage.WithLogger(logger.Named("sqlDB")),
+		sqlstorage.WithBatchCount(2),
+	)
+	if err != nil {
+		logger.Error("create sqlstorage failed", zap.Error(err))
+		return
+	}
+
 	var seeds = make([]*collect.Task, 0, 1000)
 	seeds = append(seeds, &collect.Task{
 		Property: collect.Property{
 			Name: "douban_book_list",
 		},
 		Fetcher: f,
+		Storage: storage,
 	})
 
 	s := engine.NewEngine(
