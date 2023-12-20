@@ -8,6 +8,7 @@ import (
 	"github.com/abel-yang/crawler/parse/doubanggroup"
 	"github.com/robertkrimen/otto"
 	"go.uber.org/zap"
+	"runtime/debug"
 	"sync"
 )
 
@@ -224,6 +225,11 @@ func (e *Crawler) Schedule() {
 }
 
 func (e *Crawler) CreateWork() {
+	defer func() {
+		if err := recover(); err != nil {
+			e.Logger.Error("worker panic", zap.Any("err", err), zap.String("stack", string(debug.Stack())))
+		}
+	}()
 	for {
 		r := e.scheduler.Pull()
 		if err := r.Check(); err != nil {
