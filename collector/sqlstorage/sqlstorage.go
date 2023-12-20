@@ -50,7 +50,10 @@ func (s *SqlStore) Save(dataCells ...*collector.DataCell) error {
 			s.Table[name] = struct{}{}
 		}
 		if len(s.dataDocker) >= s.BatchCount {
-			s.Flush()
+			err := s.Flush()
+			if err != nil {
+				s.logger.Error("flush db failed", zap.Error(err))
+			}
 		}
 		s.dataDocker = append(s.dataDocker, cell)
 	}

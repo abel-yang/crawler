@@ -62,14 +62,14 @@ func (d *SqlDB) CreateTable(t TableData) error {
 	if len(t.ColumnNames) == 0 {
 		return errors.New("Column can not be empty")
 	}
-	sql := `CREATE TABLE IF NOT EXITST ` + t.TableName + " ("
+	sql := `CREATE TABLE IF NOT EXISTS ` + t.TableName + " ("
 	if t.AutoKey {
 		sql += `id INT(12) NOT NULL PRIMARY KEY AUTO_INCREMENT,`
 	}
 	for _, col := range t.ColumnNames {
 		sql += col.Title + ` ` + col.Type + `,`
 	}
-	sql += sql[:len(sql)-1] + `) ENGINE=MyISAM DEFAULT CHARSET=utf8;`
+	sql = sql[:len(sql)-1] + `) ENGINE=MyISAM DEFAULT CHARSET=UTF8MB4;`
 	d.logger.Debug("create table", zap.String("sql", sql))
 	_, err := d.db.Exec(sql)
 	return err
@@ -80,7 +80,7 @@ func (d *SqlDB) Insert(t TableData) error {
 		return errors.New("Column can not be empty")
 	}
 
-	sql := `INSERT TO ` + t.TableName + `(`
+	sql := `INSERT INTO ` + t.TableName + `(`
 	for _, col := range t.ColumnNames {
 		sql += col.Title + ","
 	}

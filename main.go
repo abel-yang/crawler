@@ -5,10 +5,12 @@ import (
 	"github.com/abel-yang/crawler/collector"
 	"github.com/abel-yang/crawler/collector/sqlstorage"
 	"github.com/abel-yang/crawler/engine"
+	"github.com/abel-yang/crawler/limiter"
 	"github.com/abel-yang/crawler/log"
 	"github.com/abel-yang/crawler/proxy"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/time/rate"
 	"time"
 )
 
@@ -39,6 +41,11 @@ func main() {
 		logger.Error("create sqlstorage failed", zap.Error(err))
 		return
 	}
+	//2秒钟1个
+	secondLimit := rate.NewLimiter(Per(1, 2*time.Second), 1)
+	//60秒20个
+	minuteLimit := rate.NewLimiter(Per(20, 60*time.Second), 20)
+	multiLimit := limiter.MultiLimiter(secondLimit, minuteLimit)
 
 	var seeds = make([]*collect.Task, 0, 1000)
 	seeds = append(seeds, &collect.Task{
@@ -47,6 +54,7 @@ func main() {
 		},
 		Fetcher: f,
 		Storage: storage,
+		Limit:   multiLimit,
 	})
 
 	s := engine.NewEngine(
@@ -58,4 +66,8 @@ func main() {
 	)
 
 	s.Run()
+}
+
+func Per(everyCount int, duration time.Duration) rate.Limit {
+	return rate.Every(duration / time.Duration(everyCount))
 }

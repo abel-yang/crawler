@@ -9,7 +9,6 @@ import (
 	"github.com/robertkrimen/otto"
 	"go.uber.org/zap"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -211,6 +210,8 @@ func (e *Crawler) Schedule() {
 		task := Store.Hash[seed.Name]
 		task.Fetcher = seed.Fetcher
 		task.Storage = seed.Storage
+		task.Limit = seed.Limit
+		task.Logger = e.Logger
 		//获取初始任务
 		rootReqs, _ := task.Rule.Root()
 		for _, req := range rootReqs {
@@ -234,10 +235,8 @@ func (e *Crawler) CreateWork() {
 			continue
 		}
 		e.StoreVisited(r)
-		if r.Task.WaitTime > 0 {
-			time.Sleep(r.Task.WaitTime)
-		}
-		body, err := r.Task.Fetcher.Get(r)
+
+		body, err := r.Fetch()
 		if len(body) < 6000 {
 			e.Logger.Error("can't fetch ", zap.Int("length", len(body)), zap.String("url", r.Url))
 			e.SetFailure(r)

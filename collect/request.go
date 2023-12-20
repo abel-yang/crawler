@@ -1,21 +1,25 @@
 package collect
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"github.com/abel-yang/crawler/collector"
+	"github.com/abel-yang/crawler/limiter"
+	"go.uber.org/zap"
+	"math/rand"
 	"regexp"
 	"time"
 )
 
 type Property struct {
-	Name     string        `json:"name"`
-	Url      string        `json:"url"`
-	Cookie   string        `json:"cookie"`
-	WaitTime time.Duration `json:"waitTime"`
-	Reload   bool          `json:"reload"` //网页是否可以重复爬取
-	MaxDepth int           `json:"max_depth"`
+	Name     string `json:"name"`
+	Url      string `json:"url"`
+	Cookie   string `json:"cookie"`
+	WaitTime int64  `json:"waitTime"`
+	Reload   bool   `json:"reload"` //网页是否可以重复爬取
+	MaxDepth int    `json:"max_depth"`
 }
 
 type ParseResult struct {
@@ -25,9 +29,11 @@ type ParseResult struct {
 
 type Task struct {
 	Property
+	Logger  *zap.Logger
 	Fetcher Fetcher
 	Rule    RuleTree
 	Storage collector.Storage
+	Limit   limiter.RateLimiter
 }
 
 type Context struct {
@@ -52,6 +58,16 @@ func (r *Request) Check() error {
 		return errors.New("max depth limit reached")
 	}
 	return nil
+}
+
+func (r *Request) Fetch() ([]byte, error) {
+	if err := r.Task.Limit.Wait(context.Background()); err != nil {
+		return nil, err
+	}
+	//随机休眠，模拟人行为
+	sleepTime := rand.Int63n(r.Task.WaitTime * 1000)
+	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+	return r.Task.Fetcher.Get(r)
 }
 
 // Unique 请求唯一标识
