@@ -1,20 +1,77 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/abel-yang/crawler/collect"
 	"github.com/abel-yang/crawler/collector"
 	"github.com/abel-yang/crawler/collector/sqlstorage"
 	"github.com/abel-yang/crawler/engine"
 	"github.com/abel-yang/crawler/limiter"
 	"github.com/abel-yang/crawler/log"
+	pb "github.com/abel-yang/crawler/proto/greeter"
 	"github.com/abel-yang/crawler/proxy"
+	"github.com/go-micro/plugins/v4/registry/etcd"
+	gs "github.com/go-micro/plugins/v4/server/grpc"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go-micro.dev/v4"
+	"go-micro.dev/v4/registry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/time/rate"
+	"google.golang.org/grpc"
+	"net/http"
 	"time"
 )
 
 func main() {
+	plugin := log.NewStdoutPlugin(zapcore.InfoLevel)
+	logger := log.NewLogger(plugin)
+
+	go HandleHTTP()
+
+	reg := etcd.NewRegistry(
+		registry.Addrs(":2379"),
+	)
+
+	//生成grpc server
+	service := micro.NewService(
+		micro.Server(gs.NewServer()),
+		micro.Address(":9000"),
+		micro.Name("go.micro.server.worker"),
+		micro.Registry(reg),
+	)
+
+	// parse command line flags
+	service.Init()
+	pb.RegisterGreeterHandler(service.Server(), new(Greeter))
+	if err := service.Run(); err != nil {
+		logger.Fatal("grpc mirco failed", zap.Error(err))
+	}
+}
+
+func HandleHTTP() {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+
+	err := pb.RegisterGreeterGwFromEndpoint(ctx, mux, "localhost:9000", opts)
+	if err != nil {
+		fmt.Println(err)
+	}
+	http.ListenAndServe(":8080", mux)
+}
+
+type Greeter struct{}
+
+func (g *Greeter) Hello(ctx context.Context, req *pb.Request, rsp *pb.Response) (err error) {
+	rsp.Greeting = "hello " + req.Name
+	return nil
+}
+
+func startCrawler() {
 	plugin := log.NewStdoutPlugin(zapcore.InfoLevel)
 	logger := log.NewLogger(plugin)
 	logger.Info("log init end")
