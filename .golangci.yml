@@ -30,5 +30,29 @@ linters:
     - tagliatelle
     # An analyzer to detect magic numbers.
     - gomnd
-    - exhaustivestruct
+    # Accept Interfaces, Return Concrete Types
     - ireturn
+    # The owner seems to have abandoned the linter. Replaced by exhaustruct.
+    - exhaustivestruct
+    # Golang linter to check the errors handling expressions
+    - goerr113
+    # finds forced type assertions
+    - forcetypeassert
+    # Checks if all structure fields are initialized
+    - exhaustruct
+    # Reports long lines
+    - lll
+    # Inspects source code for security problems
+    - gosec
+    # Tool for detection of FIXME, TODO and other comment keywords
+    - godox
+    # Check if comments end in a period
+    - godot
+    # Finds slice declarations that could potentially be pre-allocated
+    - prealloc
+    # Gci controls golang package import order and makes it always deterministic.
+    - gci
+    # Gofumpt checks whether code was gofumpt-ed.
+    - gofumpt
+    # Provides diagnostics that check for bugs, performance and style issues.
+    - gocritic

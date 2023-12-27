@@ -10,7 +10,7 @@ const cityListRe = `(https://www.douban.com/group/topic/[0-9a-z]+/)"[^>]*>([^<]+
 const ContentRe = `<div class="topic-content">[\s\S]*?房东[\s\S]*?<div`
 
 var DoubangroupTask = &spider.Task{
-	Property: spider.Property{
+	Options: spider.Options{
 		Name:     "find_douban_sun_room",
 		WaitTime: 1,
 		MaxDepth: 5,

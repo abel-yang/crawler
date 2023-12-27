@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/abel-yang/crawler/collect"
 	"github.com/abel-yang/crawler/engine"
@@ -30,10 +31,47 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
+	"os"
 	"time"
 )
 
+// Version information.
+var (
+	BuildTS   = "None"
+	GitHash   = "None"
+	GitBranch = "None"
+	Version   = "None"
+)
+
+func GetVersion() string {
+	if GitHash != "" {
+		h := GitHash
+		if len(h) > 7 {
+			h = h[:7]
+		}
+		return fmt.Sprintf("%s-%s", Version, h)
+	}
+	return Version
+}
+
+// Printer print build version
+func Printer() {
+	fmt.Println("Version:          ", GetVersion())
+	fmt.Println("Git Branch:       ", GitBranch)
+	fmt.Println("Git Commit:       ", GitHash)
+	fmt.Println("Build Time (UTC): ", BuildTS)
+}
+
+var (
+	PrintVersion = flag.Bool("version", false, "print the version of this build")
+)
+
 func main() {
+	flag.Parse()
+	if *PrintVersion {
+		Printer()
+		os.Exit(0)
+	}
 	enc := toml.NewEncoder()
 	cfg, err := config.NewConfig(config.WithReader(json.NewReader(reader.WithEncoder(enc))))
 	err = cfg.Load(file.NewSource(

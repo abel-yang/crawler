@@ -15,7 +15,7 @@ type Property struct {
 	Cookie   string `json:"cookie"`
 	WaitTime int64  `json:"waitTime"` // 随机休眠时间，秒
 	Reload   bool   `json:"reload"`   //网页是否可以重复爬取
-	MaxDepth int    `json:"max_depth"`
+	MaxDepth int64  `json:"max_depth"`
 }
 
 type TaskConfig struct {

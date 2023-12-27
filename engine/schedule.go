@@ -39,7 +39,14 @@ func (c *CrawlerStore) Add(task *spider.Task) {
 
 func (c *CrawlerStore) AddJSTask(m *spider.TaskModel) {
 	task := &spider.Task{
-		Property: m.Property,
+		Options: spider.Options{
+			Name:     m.Name,
+			URL:      m.Url,
+			Cookie:   m.Cookie,
+			MaxDepth: m.MaxDepth,
+			WaitTime: m.WaitTime,
+			Reload:   m.Reload,
+		},
 	}
 
 	task.Rule.Root = func() ([]*spider.Request, error) {

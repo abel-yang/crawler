@@ -15,11 +15,11 @@ type Options struct {
 	Fetcher  Fetcher
 	Storage  Storage
 	Limit    limiter.RateLimiter
-	logger   *zap.Logger
+	Logger   *zap.Logger
 }
 
 var defaultOptions = Options{
-	logger:   zap.NewNop(),
+	Logger:   zap.NewNop(),
 	WaitTime: 5,
 	Reload:   false,
 	MaxDepth: 5,
@@ -29,7 +29,7 @@ type Option func(opt *Options)
 
 func WithLogger(logger *zap.Logger) Option {
 	return func(opt *Options) {
-		opt.logger = logger
+		opt.Logger = logger
 	}
 }
 
