@@ -60,18 +60,18 @@ func New(opts ...Option) (*SqlDB, error) {
 
 func (d *SqlDB) CreateTable(t TableData) error {
 	if len(t.ColumnNames) == 0 {
-		return errors.New("Column can not be empty")
+		return errors.New("column can not be empty")
 	}
-	sql := `CREATE TABLE IF NOT EXISTS ` + t.TableName + " ("
+	dynamicSql := `CREATE TABLE IF NOT EXISTS ` + t.TableName + " ("
 	if t.AutoKey {
-		sql += `id INT(12) NOT NULL PRIMARY KEY AUTO_INCREMENT,`
+		dynamicSql += `id INT(12) NOT NULL PRIMARY KEY AUTO_INCREMENT,`
 	}
 	for _, col := range t.ColumnNames {
-		sql += col.Title + ` ` + col.Type + `,`
+		dynamicSql += col.Title + ` ` + col.Type + `,`
 	}
-	sql = sql[:len(sql)-1] + `) ENGINE=MyISAM DEFAULT CHARSET=UTF8MB4;`
-	d.logger.Debug("create table", zap.String("sql", sql))
-	_, err := d.db.Exec(sql)
+	dynamicSql = dynamicSql[:len(dynamicSql)-1] + `) ENGINE=MyISAM DEFAULT CHARSET=UTF8MB4;`
+	d.logger.Debug("create table", zap.String("dynamic_sql", dynamicSql))
+	_, err := d.db.Exec(dynamicSql)
 	return err
 }
 
@@ -80,16 +80,16 @@ func (d *SqlDB) Insert(t TableData) error {
 		return errors.New("Column can not be empty")
 	}
 
-	sql := `INSERT INTO ` + t.TableName + `(`
+	dynamicSql := `INSERT INTO ` + t.TableName + `(`
 	for _, col := range t.ColumnNames {
-		sql += col.Title + ","
+		dynamicSql += col.Title + ","
 	}
 
-	sql = sql[:len(sql)-1] + `) VALUES `
+	dynamicSql = dynamicSql[:len(dynamicSql)-1] + `) VALUES `
 	//每一行记录值占位符
 	blank := ",(" + strings.Repeat(",?", len(t.ColumnNames))[1:] + ")"
-	sql += strings.Repeat(blank, t.DataCount)[1:] + `;`
-	d.logger.Debug("insert table", zap.String("sql", sql))
-	_, err := d.db.Exec(sql, t.Args)
+	dynamicSql += strings.Repeat(blank, t.DataCount)[1:] + `;`
+	d.logger.Debug("insert table", zap.String("dynamicSql", dynamicSql))
+	_, err := d.db.Exec(dynamicSql, t.Args)
 	return err
 }

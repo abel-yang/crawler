@@ -17,6 +17,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
@@ -37,6 +38,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-micro/generator/cmd/protoc-gen-micro v1.0.0 // indirect
 	github.com/go-micro/plugins/v4/client/grpc v1.2.1 // indirect
+	github.com/go-micro/plugins/v4/config/encoder/toml v1.2.0 // indirect
 	github.com/go-micro/plugins/v4/registry/etcd v1.2.0 // indirect
 	github.com/go-micro/plugins/v4/server/grpc v1.2.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect

@@ -1,39 +1,18 @@
-package collect
+package spider
 
 import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
-	"github.com/abel-yang/crawler/collector"
-	"github.com/abel-yang/crawler/limiter"
-	"go.uber.org/zap"
 	"math/rand"
 	"regexp"
 	"time"
 )
 
-type Property struct {
-	Name     string `json:"name"`
-	Url      string `json:"url"`
-	Cookie   string `json:"cookie"`
-	WaitTime int64  `json:"waitTime"`
-	Reload   bool   `json:"reload"` //网页是否可以重复爬取
-	MaxDepth int    `json:"max_depth"`
-}
-
 type ParseResult struct {
 	Requests []*Request    // 网站获取到的资源链接
 	Items    []interface{} //网站获取到的数据
-}
-
-type Task struct {
-	Property
-	Logger  *zap.Logger
-	Fetcher Fetcher
-	Rule    RuleTree
-	Storage collector.Storage
-	Limit   limiter.RateLimiter
 }
 
 type Context struct {
@@ -53,9 +32,11 @@ type Request struct {
 	TmpData  *Temp
 }
 
+var ErrMaxDepthLimitReached = errors.New("max depth limit reached")
+
 func (r *Request) Check() error {
 	if r.Depth > r.Task.MaxDepth {
-		return errors.New("max depth limit reached")
+		return ErrMaxDepthLimitReached
 	}
 	return nil
 }
@@ -73,6 +54,7 @@ func (r *Request) Fetch() ([]byte, error) {
 // Unique 请求唯一标识
 func (r *Request) Unique() string {
 	identify := md5.Sum([]byte(r.Url + r.Method))
+
 	return hex.EncodeToString(identify[:])
 }
 
@@ -95,8 +77,7 @@ func (ctx *Context) ParseJSReg(name string, reg string) ParseResult {
 
 func (ctx *Context) OutputJS(reg string) ParseResult {
 	re := regexp.MustCompile(reg)
-	ok := re.Match(ctx.Body)
-	if !ok {
+	if ok := re.Match(ctx.Body); !ok {
 		return ParseResult{
 			Items: []interface{}{},
 		}
@@ -106,8 +87,8 @@ func (ctx *Context) OutputJS(reg string) ParseResult {
 	}
 }
 
-func (ctx *Context) Output(data interface{}) *collector.DataCell {
-	res := &collector.DataCell{}
+func (ctx *Context) Output(data interface{}) *DataCell {
+	res := &DataCell{}
 	res.Data = make(map[string]interface{})
 	res.Data["Task"] = ctx.Req.Task.Name
 	res.Data["table"] = ctx.Req.Task.Name

@@ -89,6 +89,8 @@ github.com/go-micro/generator/cmd/protoc-gen-micro v1.0.0 h1:O/L+BqbnzsWV7ks5WO+
 github.com/go-micro/generator/cmd/protoc-gen-micro v1.0.0/go.mod h1:10I+mxNk2en3yjwqYn5DVU9Iv9l9uXyVuEYyNNxYGek=
 github.com/go-micro/plugins/v4/client/grpc v1.2.1 h1:7xAwZRCO6mdUtBHsYIQs1/eCTdhCrnjF70GB+AVd6L0=
 github.com/go-micro/plugins/v4/client/grpc v1.2.1/go.mod h1:3fDuzyfYLwEImn8+lkhKl3W4Ay1jFevkTeC32PBlgQs=
+github.com/go-micro/plugins/v4/config/encoder/toml v1.2.0 h1:KJrqg1x29SsTr2oj1Uz4ZMDGjivZfJVRKYbtI5g50NU=
+github.com/go-micro/plugins/v4/config/encoder/toml v1.2.0/go.mod h1:MvsVllLBugtN55EE8F+3X3mVG6P1en7zf8P6kjqDV6I=
 github.com/go-micro/plugins/v4/registry/etcd v1.2.0 h1:tcHlU1GzvX3oZa8WQH8ylMCGie5qD5g98YWTESJjeqQ=
 github.com/go-micro/plugins/v4/registry/etcd v1.2.0/go.mod h1:CQeTHkjN3xMtIQsynaTTquMz2sHEdsTfRIfFzrX7aug=
 github.com/go-micro/plugins/v4/server/grpc v1.2.0 h1:lXfM+/0oE/u1g0hVBYsvbP4lYOYXYOmwf5qH7ghi7Cc=

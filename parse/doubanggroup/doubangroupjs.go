@@ -1,11 +1,11 @@
 package doubanggroup
 
 import (
-	"github.com/abel-yang/crawler/collect"
+	"github.com/abel-yang/crawler/spider"
 )
 
-var DoubangroupjsTask = &collect.TaskModel{
-	Property: collect.Property{
+var DoubangroupjsTask = &spider.TaskModel{
+	Property: spider.Property{
 		Name:     "js_find_douban_sun_room",
 		WaitTime: 1,
 		MaxDepth: 5,
@@ -25,7 +25,7 @@ var DoubangroupjsTask = &collect.TaskModel{
 		console.log(arr[0].Url);
 		AddJsReq(arr);
 	`,
-	Rules: []collect.RuleModel{
+	Rules: []spider.RuleModel{
 		{
 			Name:      "解析网站URL",
 			ParseFunc: `ctx.ParseJSReg("解析阳台房", "(https://www.douban.com/group/topic/[0-9a-z]+/)\"[^>]*>([^<]+)</a>");`,

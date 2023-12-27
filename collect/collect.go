@@ -3,8 +3,10 @@ package collect
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/abel-yang/crawler/proxy"
+	"github.com/abel-yang/crawler/spider"
 	"github.com/chromedp/chromedp"
 	"go.uber.org/zap"
 	"golang.org/x/net/html/charset"
@@ -17,10 +19,6 @@ import (
 	"time"
 )
 
-type Fetcher interface {
-	Get(request *Request) ([]byte, error)
-}
-
 type BaseFetch struct {
 }
 
@@ -31,7 +29,7 @@ type BrowserFetch struct {
 }
 
 // Get 模拟浏览器访问
-func (b BrowserFetch) Get(request *Request) ([]byte, error) {
+func (b BrowserFetch) Get(request *spider.Request) ([]byte, error) {
 	client := &http.Client{
 		Timeout: b.Timeout,
 	}
@@ -96,17 +94,20 @@ func chromeFetch() {
 	log.Printf("Go's time.after example:\n%s", example)
 }
 
-func (BaseFetch) Get(req *Request) ([]byte, error) {
+var ErrStatusCode = errors.New("error status code")
+
+func (BaseFetch) Get(req *spider.Request) ([]byte, error) {
 	resp, err := http.Get(req.Url)
 	if err != nil {
 		fmt.Println(err)
+
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Error status code:%d", resp.StatusCode)
+		return nil, fmt.Errorf("w%: %d", ErrStatusCode, resp.StatusCode)
 	}
 
 	bodyReader := bufio.NewReader(resp.Body)
@@ -119,10 +120,12 @@ func DetermineEncoding(r *bufio.Reader) encoding.Encoding {
 	bytes, err := r.Peek(1024)
 
 	if err != nil {
-		fmt.Printf("fetch error:%v", err)
+		zap.L().Fatal("fetch failed", zap.Error(err))
+
 		return unicode2.UTF8
 	}
 
 	e, _, _ := charset.DetermineEncoding(bytes, "")
+
 	return e
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"golang.org/x/time/rate"
 	"sort"
+	"time"
 )
 
 type RateLimiter interface {
-	Wait(context.Context) error
+	Wait(ctx context.Context) error
 	Limit() rate.Limit
 }
 
@@ -34,4 +35,8 @@ func (l *multiLimiter) Wait(ctx context.Context) error {
 
 func (l *multiLimiter) Limit() rate.Limit {
 	return l.limiters[0].Limit()
+}
+
+func Per(everyCount int, duration time.Duration) rate.Limit {
+	return rate.Every(duration / time.Duration(everyCount))
 }
