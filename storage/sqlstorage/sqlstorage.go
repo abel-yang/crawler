@@ -2,13 +2,14 @@ package sqlstorage
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/abel-yang/crawler/engine"
 	"github.com/abel-yang/crawler/spider"
 	"github.com/abel-yang/crawler/sqldb"
 	"go.uber.org/zap"
 )
 
-type SqlStore struct {
+type SqlStorage struct {
 	dataDocker  []*spider.DataCell //分批输出结果缓存
 	columnNames []sqldb.Field      // 标题字段
 	db          sqldb.DBer
@@ -16,24 +17,24 @@ type SqlStore struct {
 	options
 }
 
-func New(opts ...Option) (*SqlStore, error) {
+func New(opts ...Option) (*SqlStorage, error) {
 	options := defaultOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
 
-	s := &SqlStore{}
+	s := &SqlStorage{}
 	s.options = options
 	s.Table = make(map[string]struct{})
 	var err error
-	s.db, err = sqldb.New(sqldb.WithSqlUrl(s.sqlUrl), sqldb.WithLogger(s.logger))
+	s.db, err = sqldb.New(sqldb.WithConnURL(s.sqlUrl), sqldb.WithLogger(s.logger))
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (s *SqlStore) Save(dataCells ...*spider.DataCell) error {
+func (s *SqlStorage) Save(dataCells ...*spider.DataCell) error {
 	for _, cell := range dataCells {
 		name := cell.GetTableName()
 		if _, ok := s.Table[name]; !ok {
@@ -79,24 +80,31 @@ func getFields(cell *spider.DataCell) []sqldb.Field {
 	return columnNames
 }
 
-func (s *SqlStore) Flush() error {
+func (s *SqlStorage) Flush() error {
 	if len(s.dataDocker) == 0 {
 		return nil
 	}
 	args := make([]interface{}, 0)
+	var ruleName string
+	var taskName string
+	var ok bool
 	for _, cell := range s.dataDocker {
-		ruleName := cell.Data["Rule"].(string)
-		taskName := cell.Data["Task"].(string)
+		if ruleName, ok = cell.Data["Rule"].(string); !ok {
+			return errors.New("no rule field")
+		}
+		if taskName, ok = cell.Data["Task"].(string); !ok {
+			return errors.New("no task field")
+		}
 		fields := engine.GetFields(taskName, ruleName)
 		data := cell.Data["Data"].(map[string]interface{})
-		value := []string{}
+		var value []string
 		for _, field := range fields {
 			v := data[field]
-			switch v.(type) {
+			switch v := v.(type) {
 			case nil:
 				value = append(value, "")
 			case string:
-				value = append(value, v.(string))
+				value = append(value, v)
 			default:
 				j, err := json.Marshal(v)
 				if err != nil {
@@ -106,7 +114,12 @@ func (s *SqlStore) Flush() error {
 				}
 			}
 		}
-		value = append(value, cell.Data["Url"].(string), cell.Data["Time"].(string))
+		if v, ok := cell.Data["URL"].(string); ok {
+			value = append(value, v)
+		}
+		if v, ok := cell.Data["Time"].(string); ok {
+			value = append(value, v)
+		}
 		for _, v := range value {
 			args = append(args, v)
 		}

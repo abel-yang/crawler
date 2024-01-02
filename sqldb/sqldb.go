@@ -75,6 +75,16 @@ func (d *SqlDB) CreateTable(t TableData) error {
 	return err
 }
 
+func (d *SqlDB) DropTable(t TableData) error {
+	if len(t.ColumnNames) == 0 {
+		return errors.New("column can not be empty")
+	}
+	dropSql := `DROP TABLE ` + t.TableName + ";"
+	d.logger.Debug("drop table", zap.String("sql", dropSql))
+	_, err := d.db.Exec(dropSql)
+	return err
+}
+
 func (d *SqlDB) Insert(t TableData) error {
 	if len(t.ColumnNames) == 0 {
 		return errors.New("Column can not be empty")
